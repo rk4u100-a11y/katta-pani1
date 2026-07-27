@@ -13,11 +13,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     defaultConfig {
         applicationId = "com.example.katta_pani"
-        minSdk = flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion.toInt()
         targetSdk = 36
-        versionCode = flutter.versionCode
+        versionCode = flutter.versionCode.toInt()
         versionName = flutter.versionName
     }
 
@@ -25,12 +29,6 @@ android {
         release {
             signingConfig = signingConfigs.getByName("debug")
         }
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
