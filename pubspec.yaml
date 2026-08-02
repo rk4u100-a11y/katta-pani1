@@ -21,4 +21,5 @@ flutter:
 
   # ഇത് താഴെ കൃത്യമായി ചേർക്കുക:
   assets:
-    - assets/images/
+    - assets/images/ 
+    
