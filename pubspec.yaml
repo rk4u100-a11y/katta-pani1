@@ -8,12 +8,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  image_picker: ^1.0.7
-  google_sign_in: ^6.2.1
-  googleapis: ^13.2.0
-  http: ^1.2.0
-  shared_preferences: ^2.2.2
-  connectivity_plus: ^5.0.2
+   image_picker: ^1.0.7
+   shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

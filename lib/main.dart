@@ -771,17 +771,17 @@ class BlockMenuScreen extends StatelessWidget {
           ListTile(
             tileColor: Colors.grey[900],
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            title: const Text('Power Block', style: TextStyle(color: Colors.white)),
+            title: const Text('Power Block', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PowerBlockScreen())),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BlockListScreen(isPowerBlock: true))),
           ),
           const SizedBox(height: 16),
           ListTile(
             tileColor: Colors.grey[900],
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            title: const Text('Line Block', style: TextStyle(color: Colors.white)),
+            title: const Text('Line Block', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LineBlockScreen())),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BlockListScreen(isPowerBlock: false))),
           ),
         ],
       ),
@@ -789,139 +789,167 @@ class BlockMenuScreen extends StatelessWidget {
   }
 }
 
-// 7. Power Block Screen
-class PowerBlockScreen extends StatefulWidget {
-  const PowerBlockScreen({super.key});
+// Updated Block List Screen with 3 rows (Chainage/Station, Time with Clock, Date with Calendar, Details of Work)
+class BlockListScreen extends StatefulWidget {
+  final bool isPowerBlock;
+  const BlockListScreen({super.key, required this.isPowerBlock});
 
   @override
-  State<PowerBlockScreen> createState() => _PowerBlockScreenState();
+  State<BlockListScreen> createState() => _BlockListScreenState();
 }
 
-class _PowerBlockScreenState extends State<PowerBlockScreen> {
-  void _addPowerBlockDialog() {
-    final titleCtrl = TextEditingController();
+class _BlockListScreenState extends State<BlockListScreen> {
+  void _addBlockDialog() {
+    final chainageCtrl = TextEditingController();
     final timeCtrl = TextEditingController();
+    final dateCtrl = TextEditingController();
+    final detailsCtrl = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Power Block'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Section / Location')),
-            TextField(controller: timeCtrl, decoration: const InputDecoration(labelText: 'Time / Duration')),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(widget.isPowerBlock ? 'Add Power Block' : 'Add Line Block'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Row 1: Chainage or Station
+                TextField(
+                  controller: chainageCtrl,
+                  decoration: const InputDecoration(labelText: 'Chainage or Station'),
+                ),
+                const SizedBox(height: 10),
+                
+                // Row 2: Time with Clock icon button
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: timeCtrl,
+                        decoration: const InputDecoration(labelText: 'Time (e.g. 10:30 AM)'),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.access_time, color: Colors.blueAccent),
+                      onPressed: () async {
+                        TimeOfDay? pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (pickedTime != null) {
+                          setDialogState(() {
+                            timeCtrl.text = pickedTime.format(context);
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Row 3: Date with Calendar icon button
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: dateCtrl,
+                        decoration: const InputDecoration(labelText: 'Date (YYYY-MM-DD)'),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+                      onPressed: () async {
+                        DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (pickedDate != null) {
+                          setDialogState(() {
+                            dateCtrl.text = pickedDate.toString().substring(0, 10);
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Extra Row: Details of Work
+                TextField(
+                  controller: detailsCtrl,
+                  decoration: const InputDecoration(labelText: 'Details of Work'),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (chainageCtrl.text.isNotEmpty) {
+                  final newItem = {
+                    'chainage': chainageCtrl.text,
+                    'time': timeCtrl.text,
+                    'date': dateCtrl.text,
+                    'details': detailsCtrl.text,
+                  };
+                  setState(() {
+                    if (widget.isPowerBlock) {
+                      powerBlockList.add(newItem);
+                    } else {
+                      lineBlockList.add(newItem);
+                    }
+                  });
+                  await LocalAndDriveStorage.saveLocally();
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Add'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.isNotEmpty) {
-                setState(() => powerBlockList.add({'title': titleCtrl.text, 'time': timeCtrl.text}));
-                await LocalAndDriveStorage.saveLocally();
-                if (!mounted) return;
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final list = widget.isPowerBlock ? powerBlockList : lineBlockList;
     return Scaffold(
-      appBar: AppBar(title: const Text('Power Block Schedule'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
-      body: powerBlockList.isEmpty
-          ? const Center(child: Text('No power blocks scheduled.', style: TextStyle(color: Colors.grey)))
+      appBar: AppBar(title: Text(widget.isPowerBlock ? 'Power Blocks' : 'Line Blocks'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      body: list.isEmpty
+          ? Center(child: Text('No ${widget.isPowerBlock ? 'Power' : 'Line'} Blocks added.', style: const TextStyle(color: Colors.grey)))
           : ListView.builder(
-              itemCount: powerBlockList.length,
+              itemCount: list.length,
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
-                final item = powerBlockList[index];
-                return Card(color: Colors.grey[900], child: ListTile(title: Text(item['title'], style: const TextStyle(color: Colors.white)), subtitle: Text('Duration: ${item['time']}', style: const TextStyle(color: Colors.grey))));
+                final item = list[index];
+                return Card(
+                  color: Colors.grey[900],
+                  child: ListTile(
+                    title: Text('Station/Chainage: ${item['chainage']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: Text('Time: ${item['time']} | Date: ${item['date']}\nDetails: ${item['details']}', style: const TextStyle(color: Colors.grey)),
+                    isThreeLine: true,
+                  ),
+                );
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addPowerBlockDialog,
+        onPressed: _addBlockDialog,
         backgroundColor: const Color(0xFF1B365D),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Power Block', style: TextStyle(color: Colors.white)),
+        label: const Text('Add Block', style: TextStyle(color: Colors.white)),
       ),
     );
   }
 }
 
-// 8. Line Block Screen
-class LineBlockScreen extends StatefulWidget {
-  const LineBlockScreen({super.key});
-
-  @override
-  State<LineBlockScreen> createState() => _LineBlockScreenState();
-}
-
-class _LineBlockScreenState extends State<LineBlockScreen> {
-  void _addLineBlockDialog() {
-    final titleCtrl = TextEditingController();
-    final timeCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Line Block'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Track / Section')),
-            TextField(controller: timeCtrl, decoration: const InputDecoration(labelText: 'Time / Duration')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.isNotEmpty) {
-                setState(() => lineBlockList.add({'title': titleCtrl.text, 'time': timeCtrl.text}));
-                await LocalAndDriveStorage.saveLocally();
-                if (!mounted) return;
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Line Block Schedule'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
-      body: lineBlockList.isEmpty
-          ? const Center(child: Text('No line blocks scheduled.', style: TextStyle(color: Colors.grey)))
-          : ListView.builder(
-              itemCount: lineBlockList.length,
-              padding: const EdgeInsets.all(16),
-              itemBuilder: (context, index) {
-                final item = lineBlockList[index];
-                return Card(color: Colors.grey[900], child: ListTile(title: Text(item['title'], style: const TextStyle(color: Colors.white)), subtitle: Text('Duration: ${item['time']}', style: const TextStyle(color: Colors.grey))));
-              },
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addLineBlockDialog,
-        backgroundColor: const Color(0xFF1B365D),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Line Block', style: TextStyle(color: Colors.white)),
-      ),
-    );
-  }
-}
-
-// 9. Checklist Screen
+// 7. Checklist Screen
 class ChecklistScreen extends StatefulWidget {
   const ChecklistScreen({super.key});
 
@@ -931,24 +959,18 @@ class ChecklistScreen extends StatefulWidget {
 
 class _ChecklistScreenState extends State<ChecklistScreen> {
   void _addProjectDialog() {
-    final projectCtrl = TextEditingController();
-
+    final projCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add Checklist Project'),
-        content: TextField(controller: projectCtrl, decoration: const InputDecoration(labelText: 'Project Name')),
+        content: TextField(controller: projCtrl, decoration: const InputDecoration(labelText: 'Project Name')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              if (projectCtrl.text.isNotEmpty) {
-                setState(() {
-                  checklistProjects.add({
-                    'projectName': projectCtrl.text,
-                    'tasks': []
-                  });
-                });
+              if (projCtrl.text.isNotEmpty) {
+                setState(() => checklistProjects.add({'projectName': projCtrl.text, 'tasks': []}));
                 await LocalAndDriveStorage.saveLocally();
                 if (!mounted) return;
                 Navigator.pop(context);
@@ -964,31 +986,24 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Checklists'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Checklist Projects'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: checklistProjects.isEmpty
           ? const Center(child: Text('No checklist projects available.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
               itemCount: checklistProjects.length,
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
-                final project = checklistProjects[index];
+                final proj = checklistProjects[index];
                 return Card(
                   color: Colors.grey[900],
                   child: ListTile(
-                    title: Text(project['projectName'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text('${(project['tasks'] as List).where((t) => t['isDone'] == true).length} / ${(project['tasks'] as List).length} Tasks Completed', style: const TextStyle(color: Colors.grey)),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChecklistDetailScreen(
-                            projectIndex: index,
-                            onUpdate: () => setState(() {}),
-                          ),
-                        ),
-                      );
-                    },
+                    title: Text(proj['projectName'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: Text('Tasks: ${(proj['tasks'] as List).length}', style: const TextStyle(color: Colors.grey)),
+                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ChecklistDetailScreen(projectIndex: index, onSave: () => setState(() {}))),
+                    ),
                   ),
                 );
               },
@@ -1005,9 +1020,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
 
 class ChecklistDetailScreen extends StatefulWidget {
   final int projectIndex;
-  final VoidCallback onUpdate;
-
-  const ChecklistDetailScreen({super.key, required this.projectIndex, required this.onUpdate});
+  final VoidCallback onSave;
+  const ChecklistDetailScreen({super.key, required this.projectIndex, required this.onSave});
 
   @override
   State<ChecklistDetailScreen> createState() => _ChecklistDetailScreenState();
@@ -1016,7 +1030,6 @@ class ChecklistDetailScreen extends StatefulWidget {
 class _ChecklistDetailScreenState extends State<ChecklistDetailScreen> {
   void _addTaskDialog() {
     final taskCtrl = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1030,7 +1043,7 @@ class _ChecklistDetailScreenState extends State<ChecklistDetailScreen> {
                 setState(() {
                   checklistProjects[widget.projectIndex]['tasks'].add({'task': taskCtrl.text, 'isDone': false});
                 });
-                widget.onUpdate();
+                widget.onSave();
                 await LocalAndDriveStorage.saveLocally();
                 if (!mounted) return;
                 Navigator.pop(context);
@@ -1045,27 +1058,27 @@ class _ChecklistDetailScreenState extends State<ChecklistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final project = checklistProjects[widget.projectIndex];
-    final List tasks = project['tasks'];
+    final proj = checklistProjects[widget.projectIndex];
+    List tasks = proj['tasks'];
 
     return Scaffold(
-      appBar: AppBar(title: Text(project['projectName']), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(proj['projectName']), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: tasks.isEmpty
-          ? const Center(child: Text('No tasks in this checklist.', style: TextStyle(color: Colors.grey)))
+          ? const Center(child: Text('No tasks added yet.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
               itemCount: tasks.length,
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
-                final taskItem = tasks[index];
+                final taskObj = tasks[index];
                 return CheckboxListTile(
-                  title: Text(taskItem['task'], style: TextStyle(color: Colors.white, decoration: taskItem['isDone'] ? TextDecoration.lineThrough : null)),
-                  value: taskItem['isDone'],
+                  title: Text(taskObj['task'], style: TextStyle(color: Colors.white, decoration: taskObj['isDone'] ? TextDecoration.lineThrough : null)),
+                  value: taskObj['isDone'],
                   activeColor: Colors.blueAccent,
-                  onChanged: (bool? value) async {
+                  onChanged: (val) async {
                     setState(() {
-                      taskItem['isDone'] = value ?? false;
+                      taskObj['isDone'] = val ?? false;
                     });
-                    widget.onUpdate();
+                    widget.onSave();
                     await LocalAndDriveStorage.saveLocally();
                   },
                 );
@@ -1081,7 +1094,7 @@ class _ChecklistDetailScreenState extends State<ChecklistDetailScreen> {
   }
 }
 
-// 10. Daily Diary & Reminder Screen
+// 8. Daily Diary & Reminder Screen (Restored original style with clear text color)
 class DailyDiaryScreen extends StatefulWidget {
   const DailyDiaryScreen({super.key});
 
@@ -1097,12 +1110,28 @@ class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Daily Diary Entry'),
+        backgroundColor: Colors.white,
+        title: const Text('New Diary Entry', style: TextStyle(color: Colors.black)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Title / Milestone')),
-            TextField(controller: contentCtrl, decoration: const InputDecoration(labelText: 'Notes / Summary')),
+            TextField(
+              controller: titleCtrl,
+              style: const TextStyle(color: Colors.black),
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                labelStyle: TextStyle(color: Colors.black54),
+              ),
+            ),
+            TextField(
+              controller: contentCtrl,
+              style: const TextStyle(color: Colors.black),
+              decoration: const InputDecoration(
+                labelText: 'Write your thoughts/notes...',
+                labelStyle: TextStyle(color: Colors.black54),
+              ),
+              maxLines: 3,
+            ),
           ],
         ),
         actions: [
@@ -1122,7 +1151,7 @@ class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
                 Navigator.pop(context);
               }
             },
-            child: const Text('Add'),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -1134,7 +1163,7 @@ class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Daily Diary & Reminder'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: dailyDiaryList.isEmpty
-          ? const Center(child: Text('No diary entries recorded.', style: TextStyle(color: Colors.grey)))
+          ? const Center(child: Text('No diary entries yet.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
               itemCount: dailyDiaryList.length,
               padding: const EdgeInsets.all(16),
@@ -1154,47 +1183,64 @@ class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
         onPressed: _addDiaryDialog,
         backgroundColor: const Color(0xFF1B365D),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Diary Entry', style: TextStyle(color: Colors.white)),
+        label: const Text('New Entry', style: TextStyle(color: Colors.white)),
       ),
     );
   }
 }
 
-// 11. Global Progress Chart Screen
+// 9. Global Progress Chart Screen (Linked directly with Work List items)
 class GlobalProgressChartScreen extends StatelessWidget {
   const GlobalProgressChartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Work Progress Overview'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Work Progress Chart'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: globalWorkList.isEmpty
-          ? const Center(child: Text('No works available for progress analysis.', style: TextStyle(color: Colors.grey)))
+          ? const Center(child: Text('No works available for charts.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
               itemCount: globalWorkList.length,
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
                 final work = globalWorkList[index];
-                String progressStr = work['progress'] ?? '0%';
-                double progressVal = double.tryParse(progressStr.replaceAll('%', '')) ?? 0.0;
-                progressVal = progressVal / 100.0;
-
+                List history = work['progressHistory'] ?? [];
                 return Card(
                   color: Colors.grey[900],
+                  margin: const EdgeInsets.only(bottom: 16),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(12.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(work['name'], style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Text('LOA: ${work['loa']} | Progress: $progressStr', style: const TextStyle(color: Colors.grey)),
+                        Text(work['name'] ?? 'Unnamed Work', style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 4),
+                        Text('LOA: ${work['loa']} | Current Progress: ${work['progress']}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                         const SizedBox(height: 12),
-                        LinearProgressIndicator(
-                          value: progressVal,
-                          backgroundColor: Colors.grey[800],
-                          color: Colors.cyanAccent,
-                          minHeight: 8,
+                        Container(
+                          height: 150,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(8)),
+                          child: history.isEmpty
+                              ? const Center(child: Text('No progress history recorded.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+                              : Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: history.map<Widget>((h) {
+                                    double val = h['val'] ?? 0.0;
+                                    int hFactor = (val * 90).clamp(10, 90).toInt();
+                                    return Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Text('${(val * 100).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                                        const SizedBox(height: 2),
+                                        Container(width: 22, height: hFactor.toDouble(), decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(4))),
+                                        const SizedBox(height: 4),
+                                        Text(h['day'], style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
                         ),
                       ],
                     ),
