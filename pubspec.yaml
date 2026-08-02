@@ -8,9 +8,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-   image_picker: ^1.0.7
-   shared_preferences: ^2.2.2
-
+  image_picker: ^1.0.7
+  shared_preferences: ^2.2.2
+  and_then_the_other_term: ^1.0.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -22,4 +23,3 @@ flutter:
   # ഇത് താഴെ കൃത്യമായി ചേർക്കുക:
   assets:
     - assets/images/ 
-    
