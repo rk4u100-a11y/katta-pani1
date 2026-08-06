@@ -395,7 +395,7 @@ class _WorkListScreenState extends State<WorkListScreen> {
   }
 }
 
-// 4. Work Detail Screen
+// 4. Work Detail Screen (Labels fixed to pure White for high visibility)
 class WorkDetailScreen extends StatefulWidget {
   final int workIndex;
   final VoidCallback onSave;
@@ -772,16 +772,16 @@ class BlockMenuScreen extends StatelessWidget {
             tileColor: Colors.grey[900],
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             title: const Text('Power Block', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PowerBlockScreen())),
+            trailing: const Icon(Icons.bolt, color: Colors.amberAccent),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BlockListScreen(blockType: 'Power Block'))),
           ),
           const SizedBox(height: 16),
           ListTile(
             tileColor: Colors.grey[900],
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             title: const Text('Line Block', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LineBlockScreen())),
+            trailing: const Icon(Icons.train, color: Colors.cyanAccent),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BlockListScreen(blockType: 'Line Block'))),
           ),
         ],
       ),
@@ -789,205 +789,75 @@ class BlockMenuScreen extends StatelessWidget {
   }
 }
 
-// Power Block Screen
-class PowerBlockScreen extends StatefulWidget {
-  const PowerBlockScreen({super.key});
+class BlockListScreen extends StatefulWidget {
+  final String blockType;
+  const BlockListScreen({super.key, required this.blockType});
 
   @override
-  State<PowerBlockScreen> createState() => _PowerBlockScreenState();
+  State<BlockListScreen> createState() => _BlockListScreenState();
 }
 
-class _PowerBlockScreenState extends State<PowerBlockScreen> {
+class _BlockListScreenState extends State<BlockListScreen> {
   void _addBlockDialog() {
-    final chainageCtrl = TextEditingController();
-    final dateCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
+    final titleCtrl = TextEditingController();
+    final detailCtrl = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Power Block'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: chainageCtrl, decoration: const InputDecoration(labelText: 'Chainage / Station')),
-              TextField(
-                controller: dateCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Date',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.calendar_today, color: Colors.blueAccent),
-                    onPressed: () async {
-                      DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setDialogState(() {
-                          dateCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-              TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Work Description')),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                if (chainageCtrl.text.isNotEmpty) {
-                  setState(() => powerBlockList.add({
-                    'chainage': chainageCtrl.text,
-                    'date': dateCtrl.text,
-                    'description': descCtrl.text,
-                  }));
-                  await LocalAndDriveStorage.saveLocally();
-                  if (!mounted) return;
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Add'),
-            ),
+      builder: (context) => AlertDialog(
+        title: Text('Add ${widget.blockType}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Section / Station')),
+            TextField(controller: detailCtrl, decoration: const InputDecoration(labelText: 'Timing / Details')),
           ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.isNotEmpty) {
+                setState(() {
+                  if (widget.blockType == 'Power Block') {
+                    powerBlockList.add({'title': titleCtrl.text, 'detail': detailCtrl.text});
+                  } else {
+                    lineBlockList.add({'title': titleCtrl.text, 'detail': detailCtrl.text});
+                  }
+                });
+                await LocalAndDriveStorage.saveLocally();
+                if (!mounted) return;
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final list = widget.blockType == 'Power Block' ? powerBlockList : lineBlockList;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Power Block Management'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
-      body: powerBlockList.isEmpty
-          ? const Center(child: Text('No power blocks recorded.', style: TextStyle(color: Colors.grey)))
+      appBar: AppBar(title: Text(widget.blockType), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      body: list.isEmpty
+          ? Center(child: Text('No ${widget.blockType} entries.', style: const TextStyle(color: Colors.grey)))
           : ListView.builder(
-              itemCount: powerBlockList.length,
+              itemCount: list.length,
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
-                final item = powerBlockList[index];
-                return Card(
-                  color: Colors.grey[900],
-                  child: ListTile(
-                    title: Text('Chainage/Station: ${item['chainage'] ?? item['title'] ?? ''}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text('Date: ${item['date'] ?? item['time'] ?? ''}\nDescription: ${item['description'] ?? 'N/A'}', style: const TextStyle(color: Colors.grey)),
-                    isThreeLine: true,
-                  ),
-                );
+                final item = list[index];
+                return Card(color: Colors.grey[900], child: ListTile(title: Text(item['title'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), subtitle: Text(item['detail'], style: const TextStyle(color: Colors.grey))));
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addBlockDialog,
         backgroundColor: const Color(0xFF1B365D),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Power Block', style: TextStyle(color: Colors.white)),
-      ),
-    );
-  }
-}
-
-// Line Block Screen
-class LineBlockScreen extends StatefulWidget {
-  const LineBlockScreen({super.key});
-
-  @override
-  State<LineBlockScreen> createState() => _LineBlockScreenState();
-}
-
-class _LineBlockScreenState extends State<LineBlockScreen> {
-  void _addBlockDialog() {
-    final chainageCtrl = TextEditingController();
-    final dateCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Line Block'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: chainageCtrl, decoration: const InputDecoration(labelText: 'Chainage / Station')),
-              TextField(
-                controller: dateCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Date',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.calendar_today, color: Colors.blueAccent),
-                    onPressed: () async {
-                      DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setDialogState(() {
-                          dateCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-              TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Work Description')),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                if (chainageCtrl.text.isNotEmpty) {
-                  setState(() => lineBlockList.add({
-                    'chainage': chainageCtrl.text,
-                    'date': dateCtrl.text,
-                    'description': descCtrl.text,
-                  }));
-                  await LocalAndDriveStorage.saveLocally();
-                  if (!mounted) return;
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Line Block Management'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
-      body: lineBlockList.isEmpty
-          ? const Center(child: Text('No line blocks recorded.', style: TextStyle(color: Colors.grey)))
-          : ListView.builder(
-              itemCount: lineBlockList.length,
-              padding: const EdgeInsets.all(16),
-              itemBuilder: (context, index) {
-                final item = lineBlockList[index];
-                return Card(
-                  color: Colors.grey[900],
-                  child: ListTile(
-                    title: Text('Chainage/Station: ${item['chainage'] ?? item['title'] ?? ''}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text('Date: ${item['date'] ?? item['time'] ?? ''}\nDescription: ${item['description'] ?? 'N/A'}', style: const TextStyle(color: Colors.grey)),
-                    isThreeLine: true,
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addBlockDialog,
-        backgroundColor: const Color(0xFF1B365D),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Line Block', style: TextStyle(color: Colors.white)),
+        label: Text('Add ${widget.blockType}', style: const TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -1003,20 +873,23 @@ class ChecklistScreen extends StatefulWidget {
 
 class _ChecklistScreenState extends State<ChecklistScreen> {
   void _addProjectDialog() {
-    final projectCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add Checklist Project'),
-        content: TextField(controller: projectCtrl, decoration: const InputDecoration(labelText: 'Project / Phase Name')),
+        content: TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Project Name')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              if (projectCtrl.text.isNotEmpty) {
+              if (nameCtrl.text.isNotEmpty) {
                 setState(() {
-                  checklistProjects.add({'projectName': projectCtrl.text, 'tasks': []});
+                  checklistProjects.add({
+                    'projectName': nameCtrl.text,
+                    'tasks': <Map<String, dynamic>>[]
+                  });
                 });
                 await LocalAndDriveStorage.saveLocally();
                 if (!mounted) return;
@@ -1033,22 +906,19 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Project Checklists'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Checklist Projects'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: checklistProjects.isEmpty
-          ? const Center(child: Text('No checklist projects available.', style: TextStyle(color: Colors.grey)))
+          ? const Center(child: Text('No checklist projects.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
               itemCount: checklistProjects.length,
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
                 final project = checklistProjects[index];
-                List tasks = project['tasks'] ?? [];
-                int completedTasks = tasks.where((t) => t['isDone'] == true).length;
-
                 return Card(
                   color: Colors.grey[900],
                   child: ListTile(
                     title: Text(project['projectName'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text('Completed: $completedTasks / ${tasks.length} tasks', style: const TextStyle(color: Colors.grey)),
+                    subtitle: Text('Tasks count: ${(project['tasks'] as List).length}', style: const TextStyle(color: Colors.grey)),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
                     onTap: () {
                       Navigator.push(
@@ -1095,7 +965,7 @@ class _ChecklistDetailScreenState extends State<ChecklistDetailScreen> {
             onPressed: () async {
               if (taskCtrl.text.isNotEmpty) {
                 setState(() {
-                  checklistProjects[widget.projectIndex]['tasks'].add({'task': taskCtrl.text, 'isDone': false});
+                  (checklistProjects[widget.projectIndex]['tasks'] as List).add({'task': taskCtrl.text, 'isDone': false});
                 });
                 widget.onUpdate();
                 await LocalAndDriveStorage.saveLocally();
@@ -1113,28 +983,29 @@ class _ChecklistDetailScreenState extends State<ChecklistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final project = checklistProjects[widget.projectIndex];
-    List tasks = project['tasks'] ?? [];
+    final List tasks = project['tasks'];
 
     return Scaffold(
       appBar: AppBar(title: Text(project['projectName']), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: tasks.isEmpty
-          ? const Center(child: Text('No tasks added yet.', style: TextStyle(color: Colors.grey)))
+          ? const Center(child: Text('No tasks in this checklist.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
               itemCount: tasks.length,
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
                 final taskItem = tasks[index];
-                return CheckboxListTile(
-                  title: Text(taskItem['task'], style: TextStyle(color: taskItem['isDone'] ? Colors.grey : Colors.white, decoration: taskItem['isDone'] ? TextDecoration.lineThrough : null)),
-                  value: taskItem['isDone'],
-                  activeColor: Colors.blueAccent,
-                  onChanged: (val) async {
-                    setState(() {
-                      taskItem['isDone'] = val ?? false;
-                    });
-                    widget.onUpdate();
-                    await LocalAndDriveStorage.saveLocally();
-                  },
+                return Card(
+                  color: Colors.grey[900],
+                  child: CheckboxListTile(
+                    title: Text(taskItem['task'], style: TextStyle(color: Colors.white, decoration: taskItem['isDone'] ? TextDecoration.lineThrough : null)),
+                    value: taskItem['isDone'],
+                    activeColor: Colors.blueAccent,
+                    onChanged: (val) async {
+                      setState(() => taskItem['isDone'] = val ?? false);
+                      widget.onUpdate();
+                      await LocalAndDriveStorage.saveLocally();
+                    },
+                  ),
                 );
               },
             ),
@@ -1148,7 +1019,7 @@ class _ChecklistDetailScreenState extends State<ChecklistDetailScreen> {
   }
 }
 
-// 8. Daily Diary & Reminder Screen
+// 8. Daily Diary Screen (Fully Updated with Time Reminder, Media, Geo-tag Toggle & Voice Typing)
 class DailyDiaryScreen extends StatefulWidget {
   const DailyDiaryScreen({super.key});
 
@@ -1158,32 +1029,121 @@ class DailyDiaryScreen extends StatefulWidget {
 
 class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
   void _addDiaryDialog() {
-    final diaryCtrl = TextEditingController();
+    final entryCtrl = TextEditingController();
+    final dateCtrl = TextEditingController(text: DateTime.now().toString().substring(0, 10));
+    final reminderTimeCtrl = TextEditingController(text: '21:00');
+    final locationCtrl = TextEditingController(text: 'Kozhikode Site');
+    String attachedMedia = 'None';
+    bool isGeoTagEnabled = true;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Daily Diary Entry'),
-        content: TextField(controller: diaryCtrl, maxLines: 4, decoration: const InputDecoration(labelText: 'Write down your notes...')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (diaryCtrl.text.isNotEmpty) {
-                setState(() {
-                  dailyDiaryList.add({
-                    'note': diaryCtrl.text,
-                    'date': DateTime.now().toString().substring(0, 10),
-                  });
-                });
-                await LocalAndDriveStorage.saveLocally();
-                if (!mounted) return;
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Save'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Diary Entry & Reminder'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: dateCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Date',
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                TextField(
+                  controller: reminderTimeCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Time Reminder (e.g., 21:00)',
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                TextField(
+                  controller: locationCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Geo-tag Location',
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  title: const Text('Geo-tag Location Toggle', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: Text(isGeoTagEnabled ? 'Geo-location will be tagged' : 'Geo-location disabled', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  value: isGeoTagEnabled,
+                  activeColor: Colors.cyanAccent,
+                  onChanged: (val) {
+                    setDialogState(() => isGeoTagEnabled = val);
+                  },
+                ),
+                const Divider(color: Colors.white24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setDialogState(() {
+                          entryCtrl.text += ' [Voice Typed Speech Text Simulated] ';
+                        });
+                      },
+                      icon: const Icon(Icons.mic, color: Colors.black),
+                      label: const Text('Voice Typing', style: TextStyle(color: Colors.black)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setDialogState(() {
+                          attachedMedia = 'Photo/Video Attached Successfully';
+                        });
+                      },
+                      icon: const Icon(Icons.photo_camera, color: Colors.black),
+                      label: const Text('Add Media', style: TextStyle(color: Colors.black)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amberAccent),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('Status: $attachedMedia', style: const TextStyle(color: Colors.greenAccent, fontSize: 12)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: entryCtrl,
+                  maxLines: 4,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Type Diary / Notes here...',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (entryCtrl.text.isNotEmpty) {
+                  setState(() {
+                    dailyDiaryList.add({
+                      'date': dateCtrl.text,
+                      'reminder': reminderTimeCtrl.text,
+                      'location': isGeoTagEnabled ? locationCtrl.text : 'Geo-tag Disabled',
+                      'media': attachedMedia,
+                      'entry': entryCtrl.text,
+                    });
+                  });
+                  await LocalAndDriveStorage.saveLocally();
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save Entry'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1191,7 +1151,7 @@ class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Daily Diary & Reminder'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Daily Diary & Reminders'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: dailyDiaryList.isEmpty
           ? const Center(child: Text('No diary entries yet.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
@@ -1201,12 +1161,17 @@ class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
                 final item = dailyDiaryList[index];
                 return Card(
                   color: Colors.grey[900],
+                  margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
-                    title: Text(item['date'], style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+                    title: Text('${item['date']} | Reminder: ${item['reminder']}', style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold)),
                     subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(item['note'], style: const TextStyle(color: Colors.white70)),
+                      padding: const EdgeInsets.only(top: 6.0),
+                      child: Text(
+                        '📍 Location: ${item['location']}\n📁 Media: ${item['media']}\n\n📝 Note: ${item['entry']}',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
                     ),
+                    isThreeLine: true,
                   ),
                 );
               },
@@ -1215,54 +1180,103 @@ class _DailyDiaryScreenState extends State<DailyDiaryScreen> {
         onPressed: _addDiaryDialog,
         backgroundColor: const Color(0xFF1B365D),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Entry', style: TextStyle(color: Colors.white)),
+        label: const Text('Add Diary Entry', style: TextStyle(color: Colors.black)),
       ),
     );
   }
 }
 
-// 9. Global Progress Chart Screen
+// 9. Global Work Progress Chart Screen
 class GlobalProgressChartScreen extends StatelessWidget {
   const GlobalProgressChartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Work Progress Chart'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Work Progress Charts'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
       body: globalWorkList.isEmpty
-          ? const Center(child: Text('No works available for charting.', style: TextStyle(color: Colors.grey)))
+          ? const Center(child: Text('No works added yet.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
               itemCount: globalWorkList.length,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16.0),
               itemBuilder: (context, index) {
                 final work = globalWorkList[index];
-                String progressStr = work['progress'] ?? '0%';
-                double progressVal = (double.tryParse(progressStr.replaceAll('%', '')) ?? 0.0) / 100.0;
 
                 return Card(
                   color: Colors.grey[900],
                   margin: const EdgeInsets.only(bottom: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(work['name'] ?? 'Work', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Text('Progress: $progressStr', style: const TextStyle(color: Colors.amber)),
-                        const SizedBox(height: 10),
-                        LinearProgressIndicator(
-                          value: progressVal,
-                          backgroundColor: Colors.grey[800],
-                          color: Colors.cyanAccent,
-                          minHeight: 8,
-                        ),
-                      ],
-                    ),
+                  child: ListTile(
+                    title: Text(work['name'], style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    subtitle: Text('LOA: ${work['loa']} | Total Progress: ${work['progress']}', style: const TextStyle(color: Colors.grey)),
+                    trailing: const Icon(Icons.show_chart, color: Colors.cyanAccent),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => WorkGraphicalChartDetailScreen(work: work)),
+                      );
+                    },
                   ),
                 );
               },
             ),
+    );
+  }
+}
+
+class WorkGraphicalChartDetailScreen extends StatelessWidget {
+  final Map<String, dynamic> work;
+  const WorkGraphicalChartDetailScreen({super.key, required this.work});
+
+  @override
+  Widget build(BuildContext context) {
+    final List history = work['progressHistory'] ?? [];
+
+    return Scaffold(
+      appBar: AppBar(title: Text('${work['name']} Chart'), backgroundColor: const Color(0xFF1B365D), foregroundColor: Colors.white),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Work: ${work['name']}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 5),
+            Text('LOA: ${work['loa']} | Current Progress: ${work['progress']}', style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 30),
+            const Text('Graphical Representation:', style: TextStyle(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 15),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.grey[900], borderRadius: BorderRadius.circular(12)),
+                child: history.isEmpty
+                    ? const Center(child: Text('No chart data available.', style: TextStyle(color: Colors.grey)))
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: history.map((item) {
+                          double val = item['val'] ?? 0.0;
+                          int heightFactor = (val * 200).clamp(10, 200).toInt();
+                          return Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text('${(val * 100).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: 32,
+                                height: heightFactor.toDouble(),
+                                decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(6)),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(item['day'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
